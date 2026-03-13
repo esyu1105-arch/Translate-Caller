@@ -1,187 +1,238 @@
-<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Gym Tempo Pro</title>
-<link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<style>
-body{background:rgb(18,18,18);color:rgb(255,255,255);text-align:center;font-family:-apple-system,sans-serif;display:flex;flex-direction:column;justify-content:center;height:100vh;margin:0;overflow:hidden}
-.screen{display:flex;flex-direction:column;align-items:center;gap:12px}
-.slogan-text{color:rgb(0,255,136);font-size:4.5rem;font-weight:900;margin:-60px 0 10px 0;font-style:italic;text-shadow:3px 3px 15px rgba(0,255,136,0.4);line-height:1.1}
-.countdown-text{font-size:1.2rem;color:rgb(255,68,68);margin-bottom:8px;font-weight:900;letter-spacing:1px}
-.target-title-main{font-size:0.95rem;margin:0 0 5px 0;color:rgb(170,170,170);white-space:nowrap;letter-spacing:0.5px}
-.target-title-sub{font-size:0.75rem;margin:0;color:rgb(120,120,120);font-weight:bold}
-.rep-info{color:rgb(0,255,136);font-size:1.8rem;font-weight:600}
-.main-display{font-size:8rem;font-weight:900;margin:10px 0;line-height:1.1;min-height:9rem;display:flex;align-items:center;justify-content:center}
-.rest-title{font-size:2rem;color:rgb(255,255,255);margin:0}
-.input-group{display:flex;gap:10px;margin-bottom:10px}
-input{background:rgb(34,34,34);border:2px solid rgb(0,255,136);color:rgb(255,255,255);padding:10px;font-size:1.4rem;border-radius:12px;width:90px;text-align:center}
-button{padding:18px 30px;font-size:1.3rem;border:none;border-radius:18px;font-weight:700;min-width:105px}
-.btn-go,.btn-resume,.btn-skip{background:rgb(0,255,136);color:rgb(0,0,0);min-width:160px}
-.btn-plus{background:rgb(255,193,7);color:rgb(0,0,0);margin-bottom:10px;min-width:160px}
-.btn-stop{background:rgb(255,68,68);color:rgb(255,255,255)}
-.btn-reset{background:rgb(68,68,68);color:rgb(255,255,255)}
-.btn-end{background:rgb(100,100,100);color:rgb(255,255,255)}
-#diu-msg{color:rgb(255,68,68);font-weight:900;font-size:1.8rem;min-height:2.2rem;margin-bottom:5px;text-transform:uppercase}
-.hidden{display:none!important}
-</style></head>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Gym Tempo Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <style>
+        body{background:rgb(18,18,18);color:rgb(255,255,255);text-align:center;font-family:-apple-system,sans-serif;display:flex;flex-direction:column;justify-content:center;height:100vh;margin:0;overflow:hidden}
+        .screen{display:flex;flex-direction:column;align-items:center;gap:12px}
+        .slogan-text{color:rgb(0,255,136);font-size:4.5rem;font-weight:900;margin:-60px 0 10px 0;font-style:italic;text-shadow:3px 3px 15px rgba(0,255,136,0.4);line-height:1.1}
+        .countdown-text{font-size:1.2rem;color:rgb(255,68,68);margin-bottom:8px;font-weight:900;letter-spacing:1px;min-height:1.5rem}
+        .target-title-main{font-size:0.95rem;margin:0 0 5px 0;color:rgb(170,170,170);white-space:nowrap;letter-spacing:0.5px}
+        .target-title-sub{font-size:0.75rem;margin:0;color:rgb(120,120,120);font-weight:bold}
+        .rep-info{color:rgb(0,255,136);font-size:1.8rem;font-weight:600}
+        .main-display{font-size:8rem;font-weight:900;margin:10px 0;line-height:1.1;min-height:9rem;display:flex;align-items:center;justify-content:center}
+        .rest-title{font-size:2rem;color:rgb(255,255,255);margin:0}
+        .input-group{display:flex;gap:10px;margin-bottom:10px}
+        input{background:rgb(34,34,34);border:2px solid rgb(0,255,136);color:rgb(255,255,255);padding:10px;font-size:1.4rem;border-radius:12px;width:90px;text-align:center}
+        button{padding:18px 30px;font-size:1.3rem;border:none;border-radius:18px;font-weight:700;min-width:105px}
+        .btn-go{background:rgb(0,255,136);color:rgb(0,0,0);min-width:160px}
+        .btn-plus{background:rgb(255,193,7);color:rgb(0,0,0);margin-bottom:10px;min-width:160px}
+        .btn-stop{background:rgb(255,68,68);color:rgb(255,255,255)}
+        .btn-reset{background:rgb(68,68,68);color:rgb(255,255,255)}
+        .btn-end{background:rgb(100,100,100);color:rgb(255,255,255)}
+        #diu-msg{color:rgb(255,68,68);font-weight:900;font-size:1.8rem;min-height:2.2rem;margin-bottom:5px;text-transform:uppercase}
+        .hidden{display:none!important}
+    </style>
+</head>
 <body>
-<div class="screen" id="h"><p class="slogan-text">肥豬王<br>瘦撚梗</p>
-<div class="countdown-text" id="cd-display">🔥 最後衝刺 🔥 : -- weeks -- days</div>
-<h1 class="target-title-main">Enter Reps for T1, T2 and Sets</h1>
-<div class="input-group">
-<div style="display:flex;flex-direction:column;gap:5px"><span class="target-title-sub">REPS 1</span><input type="number" id="tr1-in" value="10"></div>
-<div style="display:flex;flex-direction:column;gap:5px"><span class="target-title-sub">REPS 2</span><input type="number" id="tr2-in" value="10"></div>
-<div style="display:flex;flex-direction:column;gap:5px"><span class="target-title-sub">SETS</span><input type="number" id="ts-in" value="4"></div>
-</div>
-<button class="btn-go" id="g">START SUPERSET</button></div>
-<div class="screen hidden" id="train-scr"><div class="rep-info" id="status-label">Set 1 / 4 | T1</div><div class="main-display" id="count-label">READY</div><div style="display:flex;gap:8px">
-<button class="btn-stop" id="p">STOP</button>
-<button class="btn-reset" id="r">RESET</button>
-<button class="btn-end" id="e">END</button>
-</div></div>
-<div class="screen hidden" id="rest-scr">
-<h2 class="rest-title">RESTING...</h2>
-<div id="diu-msg"></div>
-<div class="main-display" id="rest-clock" style="color:rgb(0,255,136)">60</div>
-<button class="btn-plus" id="add-time">比多10秒抖抖氣</button>
-<button class="btn-skip" id="skip">SKIP REST</button>
-</div>
-<div class="screen hidden" id="co"><div class="main-display" style="font-size:2.2rem;color:rgb(0,255,136);padding:20px;line-height:1.4">Congratulations!<br>Session Complete!</div><button class="btn-go" id="bk">DONE</button></div>
+    <audio id="silent-audio" loop preload="auto">
+        <source src="data:audio/wav;base64,UklGRigAAABXQVZFRm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==" type="audio/wav">
+    </audio>
 
-<script>
-let rep=1,count=1,currentSet=1,plusCount=0,timeLeft=60,isT2=false;
-let timer=null,restTimer=null,t2Interval=null,targetReps1=10,targetReps2=10,targetSets=4,isPaused=false;
-let activeTimeouts=[];
-const sp=window.speechSynthesis;
-const cGreen = 'rgb(0,255,136)', cYellow = 'rgb(255,235,59)', cWhite = 'rgb(255,255,255)';
+    <div class="screen" id="h">
+        <p class="slogan-text">肥豬王<br>瘦撚梗</p>
+        <div class="countdown-text" id="cd-display">🔥 最後衝刺 🔥</div>
+        <h1 class="target-title-main">Enter Reps for T1, T2 and Sets</h1>
+        <div class="input-group">
+            <div style="display:flex;flex-direction:column;gap:5px"><span class="target-title-sub">REPS 1</span><input type="number" id="tr1-in" value="10"></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span class="target-title-sub">REPS 2</span><input type="number" id="tr2-in" value="10"></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span class="target-title-sub">SETS</span><input type="number" id="ts-in" value="4"></div>
+        </div>
+        <button class="btn-go" onclick="triggerStart()">START SESSION</button>
+    </div>
 
-function speak(txt,rate=1.1){const u=new SpeechSynthesisUtterance(txt);u.lang='en-US';u.rate=rate;sp.speak(u)}
-function clearAllTimeouts(){activeTimeouts.forEach(clearTimeout);activeTimeouts=[]}
+    <div class="screen hidden" id="train-scr">
+        <div class="rep-info" id="status-label">Set 1 / 4 | T1</div>
+        <div class="main-display" id="count-label">READY</div>
+        <div style="display:flex;gap:8px">
+            <button class="btn-stop" id="p" onclick="triggerPause()">STOP</button>
+            <button class="btn-reset" onclick="restartCurrentPhase()">RESET</button>
+            <button class="btn-end" onclick="resetToHome()">END</button>
+        </div>
+    </div>
 
-function updateCountdown() {
-    const targetDate = new Date('2026-05-24T00:00:00');
-    const now = new Date();
-    const diff = targetDate - now;
-    if (diff > 0) {
-        const totalDays = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const weeks = Math.floor(totalDays / 7);
-        const days = totalDays % 7;
-        document.getElementById('cd-display').innerText = `🔥 最後衝刺 🔥 : ${weeks} weeks ${days} days`;
-    } else { document.getElementById('cd-display').innerText = "🔥 大日子已到！ 🔥"; }
-}
+    <div class="screen hidden" id="rest-scr">
+        <h2 class="rest-title">RESTING...</h2>
+        <div id="diu-msg"></div>
+        <div class="main-display" id="rest-clock" style="color:rgb(0,255,136)">60</div>
+        <button class="btn-plus" onclick="addTenSeconds()">比多10秒抖抖氣</button>
+        <button class="btn-skip" onclick="skipRest()">SKIP REST</button>
+    </div>
 
-function resetToHome(){
-    if(timer)clearInterval(timer);if(restTimer)clearInterval(restTimer);if(t2Interval)clearInterval(t2Interval);
-    clearAllTimeouts();timer=null;restTimer=null;t2Interval=null;sp.cancel();
-    document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
-    document.getElementById('h').classList.remove('hidden');
-    updateCountdown();
-}
+    <div class="screen hidden" id="co">
+        <div class="main-display" style="font-size:2.2rem;color:rgb(0,255,136);padding:20px;line-height:1.4">Congratulations!<br>Session Complete!</div>
+        <button class="btn-go" onclick="resetToHome()">DONE</button>
+    </div>
 
-function restartCurrentPhase(){
-    if(timer)clearInterval(timer);if(t2Interval)clearInterval(t2Interval);
-    clearAllTimeouts();timer=null;t2Interval=null;sp.cancel();
-    if(isT2){ transitionToT2(true); } else { startSet(); }
-}
-
-function startSet(){
-    document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
-    document.getElementById('train-scr').classList.remove('hidden');
-    rep=1;count=1;isPaused=false;
-    const pBtn = document.getElementById('p'), cLbl = document.getElementById('count-label');
-    pBtn.innerText = 'STOP'; pBtn.style.background = 'rgb(255,68,68)'; pBtn.style.color = cWhite;
-    cLbl.innerText = 'READY'; cLbl.style.color = cYellow;
-    document.getElementById('status-label').innerText=`Set ${currentSet} / ${targetSets} | T1`;
-    speak('Ready', 1.0);
-    
-    // 精準 1 秒間隔
-    let t1=setTimeout(()=>{cLbl.innerText='3';speak('3',1.1);
-    let t2=setTimeout(()=>{cLbl.innerText='2';speak('2',1.1);
-    let t3=setTimeout(()=>{cLbl.innerText='1';speak('1',1.1);
-    let t4=setTimeout(()=>{cLbl.innerText='GO';cLbl.style.color=cGreen;speak('GO',1.2);
-    let t5=setTimeout(()=>{runLogic()},1000);activeTimeouts.push(t5)},1000);activeTimeouts.push(t4)},1000);activeTimeouts.push(t3)},1000);activeTimeouts.push(t2)},1000);
-    activeTimeouts.push(t1);
-}
-
-function runLogic(){
-    const cLbl = document.getElementById('count-label');
-    cLbl.style.color = cGreen;
-    timer=setInterval(()=>{
-        if(!isPaused){
-            let target = isT2 ? targetReps2 : targetReps1;
-            if(count==1){
-                if(rep>target){
-                    clearInterval(timer);
-                    if(!isT2){ transitionToT2(false); } else { finishSet(); }
-                    return;
+    <script>
+        function updateCountdown() {
+            try {
+                var target = new Date(2026, 4, 24).getTime(); // May is 4
+                var now = new Date().getTime();
+                var diff = target - now;
+                var display = document.getElementById('cd-display');
+                if (display && diff > 0) {
+                    var totalDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    var weeks = Math.floor(totalDays / 7);
+                    var days = totalDays % 7;
+                    display.innerHTML = "🔥 最後衝刺 🔥 : " + weeks + " weeks " + days + " days";
                 }
-                cLbl.innerText=rep;speak(rep.toString(),1.1)
-            }else{cLbl.innerText=count;speak(count.toString(),1.1)}
-            count++;if(count>4){count=1;rep++}
-        }
-    },1000)
-}
-
-function transitionToT2(isRestart){
-    isT2 = true; rep=1; count=1;
-    const cLbl = document.getElementById('count-label');
-    cLbl.innerText = 'T2 READY'; cLbl.style.color = cYellow;
-    document.getElementById('status-label').innerText=`Set ${currentSet} / ${targetSets} | T2`;
-    speak(isRestart ? 'Restarting Training 2. Ready.' : 'Training 1 complete. Ready for Training 2', 1.0);
-    let timeLeft = 6;
-    t2Interval = setInterval(()=>{
-        if(!isPaused){
-            timeLeft--; cLbl.innerText = timeLeft > 0 ? timeLeft : 'GO';
-            if(timeLeft <= 3 && timeLeft > 0) speak(timeLeft.toString(), 1.1);
-            if(timeLeft <= 0){
-                clearInterval(t2Interval);
-                cLbl.style.color = cGreen; speak('GO', 1.2);
-                setTimeout(()=>runLogic(), 1000); // T2 完咗 Ready 之後同樣抖足 1 秒先數
+            } catch (e) {
+                console.log("Countdown Fail:", e);
             }
         }
-    }, 1000);
-}
+        updateCountdown();
+    </script>
 
-function finishSet(){clearInterval(timer);if(currentSet>=targetSets){showFinalCongrats()}else{isT2=false;startRest()}}
+    <script>
+        var rep = 1, count = 1, currentSet = 1, plusCount = 0, timeLeft = 60, isT2 = false;
+        var timer = null, restTimer = null, t2Interval = null, targetReps1 = 10, targetReps2 = 10, targetSets = 4, isPaused = false;
+        var activeTimeouts = [];
+        var sp = window.speechSynthesis;
+        var cGreen = 'rgb(0,255,136)', cYellow = 'rgb(255,235,59)', cWhite = 'rgb(255,255,255)';
 
-function startRest(){
-    document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
-    document.getElementById('rest-scr').classList.remove('hidden');
-    plusCount=0;timeLeft=60;
-    document.getElementById('diu-msg').innerText='';
-    document.getElementById('rest-clock').style.color=cGreen;
-    document.getElementById('rest-clock').innerText=timeLeft;
-    restTimer=setInterval(()=>{
-        timeLeft--;document.getElementById('rest-clock').innerText=timeLeft;
-        if(timeLeft===10)speak('10 seconds left',1.0);
-        if(timeLeft<=3&&timeLeft>0)speak(timeLeft.toString(),1.1);
-        if(timeLeft <= 0){clearInterval(restTimer);currentSet++;startSet()}
-    },1000)
-}
+        function speak(txt, rate) {
+            try {
+                var u = new SpeechSynthesisUtterance(txt);
+                u.lang = 'en-US'; u.rate = rate || 1.1; sp.speak(u);
+            } catch(e){}
+        }
 
-function showFinalCongrats(){speak('Congratulations! Session Complete!',1.0);document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById('co').classList.remove('hidden')}
+        function clearAllTimeouts() {
+            for (var i = 0; i < activeTimeouts.length; i++) { clearTimeout(activeTimeouts[i]); }
+            activeTimeouts = [];
+        }
 
-window.onload=function(){
-    updateCountdown();
-    document.getElementById('g').addEventListener('click',()=>{
-        targetReps1=parseInt(document.getElementById('tr1-in').value);
-        targetReps2=parseInt(document.getElementById('tr2-in').value);
-        targetSets=parseInt(document.getElementById('ts-in').value);
-        currentSet=1;isT2=false;startSet()
-    });
-    document.getElementById('p').addEventListener('click',function(){
-        isPaused=!isPaused;this.innerText=isPaused?'RESUME':'STOP';
-        this.style.background=isPaused?cGreen:'rgb(255,68,68)';
-        this.style.color=isPaused?'rgb(0,0,0)':cWhite;
-    });
-    document.getElementById('r').addEventListener('click',restartCurrentPhase);
-    document.getElementById('e').addEventListener('click',resetToHome);
-    document.getElementById('bk').addEventListener('click',resetToHome);
-    document.getElementById('skip').addEventListener('click',()=>{clearInterval(restTimer);currentSet++;isT2=false;startSet()});
-    document.getElementById('add-time').addEventListener('click',()=>{
-        if(plusCount<2){timeLeft+=10;plusCount++;document.getElementById('rest-clock').innerText=timeLeft;speak('Ten more seconds',1.1)}
-        else{document.getElementById('diu-msg').innerText='Diu你咩抖咁耐';document.getElementById('rest-clock').style.color='rgb(255,68,68)';speak('Stop resting',1.0)}
-    });
-}
-</script></body></html>
+        function triggerStart() {
+            targetReps1 = parseInt(document.getElementById('tr1-in').value) || 10;
+            targetReps2 = parseInt(document.getElementById('tr2-in').value) || 10;
+            targetSets = parseInt(document.getElementById('ts-in').value) || 4;
+            currentSet = 1; isT2 = false; startSet();
+        }
+
+        function resetToHome() {
+            if (timer) clearInterval(timer); if (restTimer) clearInterval(restTimer); if (t2Interval) clearInterval(t2Interval);
+            clearAllTimeouts(); timer = null; restTimer = null; t2Interval = null; sp.cancel();
+            try { document.getElementById('silent-audio').pause(); } catch (e) {}
+            var scs = document.querySelectorAll('.screen');
+            for (var i = 0; i < scs.length; i++) { scs[i].classList.add('hidden'); }
+            document.getElementById('h').classList.remove('hidden');
+        }
+
+        function restartCurrentPhase() {
+            if (timer) clearInterval(timer); if (t2Interval) clearInterval(t2Interval);
+            clearAllTimeouts(); timer = null; t2Interval = null; sp.cancel();
+            if (isT2) { transitionToT2(true); } else { startSet(); }
+        }
+
+        function startSet() {
+            var scs = document.querySelectorAll('.screen');
+            for (var i = 0; i < scs.length; i++) { scs[i].classList.add('hidden'); }
+            document.getElementById('train-scr').classList.remove('hidden');
+            rep = 1; count = 1; isPaused = false;
+            try { document.getElementById('silent-audio').play(); } catch (e) {}
+            var pBtn = document.getElementById('p'), cLbl = document.getElementById('count-label');
+            pBtn.innerText = 'STOP'; pBtn.style.background = 'rgb(255,68,68)'; pBtn.style.color = cWhite;
+            cLbl.innerText = 'READY'; cLbl.style.color = cYellow;
+            document.getElementById('status-label').innerText = "Set " + currentSet + " / " + targetSets + " | T1";
+            speak('Ready', 1.0);
+            activeTimeouts.push(setTimeout(function () { cLbl.innerText = '3'; speak('3', 1.1);
+                activeTimeouts.push(setTimeout(function () { cLbl.innerText = '2'; speak('2', 1.1);
+                    activeTimeouts.push(setTimeout(function () { cLbl.innerText = '1'; speak('1', 1.1);
+                        activeTimeouts.push(setTimeout(function () { cLbl.innerText = 'GO'; cLbl.style.color = cGreen; speak('GO', 1.2);
+                            activeTimeouts.push(setTimeout(function () { runLogic(); }, 1000));
+                        }, 1000));
+                    }, 1000));
+                }, 1000));
+            }, 1000));
+        }
+
+        function runLogic() {
+            var cLbl = document.getElementById('count-label'); cLbl.style.color = cGreen;
+            timer = setInterval(function () {
+                if (!isPaused) {
+                    var target = isT2 ? targetReps2 : targetReps1;
+                    if (count == 1) {
+                        if (rep > target) {
+                            clearInterval(timer);
+                            if (!isT2) { transitionToT2(false); } else { finishSet(); }
+                            return;
+                        }
+                        cLbl.innerText = rep; speak(rep.toString(), 1.1);
+                    } else { cLbl.innerText = count; speak(count.toString(), 1.1); }
+                    count++; if (count > 4) { count = 1; rep++; }
+                }
+            }, 1000);
+        }
+
+        function transitionToT2(isRestart) {
+            isT2 = true; rep = 1; count = 1;
+            var cLbl = document.getElementById('count-label');
+            cLbl.innerText = 'T2 READY'; cLbl.style.color = cYellow;
+            document.getElementById('status-label').innerText = "Set " + currentSet + " / " + targetSets + " | T2";
+            speak(isRestart ? 'Restarting Training 2. Ready.' : 'Training 1 complete. Ready for Training 2', 1.0);
+            var tLeft = 6;
+            t2Interval = setInterval(function () {
+                if (!isPaused) {
+                    tLeft--; cLbl.innerText = tLeft > 0 ? tLeft : 'GO';
+                    if (tLeft <= 3 && tLeft > 0) speak(tLeft.toString(), 1.1);
+                    if (tLeft <= 0) {
+                        clearInterval(t2Interval); cLbl.style.color = cGreen; speak('GO', 1.2);
+                        setTimeout(function () { runLogic(); }, 1000);
+                    }
+                }
+            }, 1000);
+        }
+
+        function finishSet() { clearInterval(timer); if (currentSet >= targetSets) { showFinalCongrats(); } else { isT2 = false; startRest(); } }
+
+        function startRest() {
+            var scs = document.querySelectorAll('.screen');
+            for (var i = 0; i < scs.length; i++) { scs[i].classList.add('hidden'); }
+            document.getElementById('rest-scr').classList.remove('hidden');
+            plusCount = 0; timeLeft = 60;
+            document.getElementById('diu-msg').innerText = '';
+            document.getElementById('rest-clock').style.color = cGreen; document.getElementById('rest-clock').innerText = timeLeft;
+            restTimer = setInterval(function () {
+                timeLeft--; document.getElementById('rest-clock').innerText = timeLeft;
+                if (timeLeft === 10) speak('10 seconds left', 1.0);
+                if (timeLeft <= 3 && timeLeft > 0) speak(timeLeft.toString(), 1.1);
+                if (timeLeft <= 0) { clearInterval(restTimer); currentSet++; startSet(); }
+            }, 1000);
+        }
+
+        function showFinalCongrats() {
+            speak('Congratulations! Session Complete!', 1.0);
+            var scs = document.querySelectorAll('.screen');
+            for (var i = 0; i < scs.length; i++) { scs[i].classList.add('hidden'); }
+            document.getElementById('co').classList.remove('hidden');
+        }
+
+        function triggerPause() {
+            isPaused = !isPaused;
+            var pBtn = document.getElementById('p');
+            pBtn.innerText = isPaused ? 'RESUME' : 'STOP';
+            pBtn.style.background = isPaused ? cGreen : 'rgb(255,68,68)';
+            pBtn.style.color = isPaused ? 'rgb(0,0,0)' : cWhite;
+            try { var audio = document.getElementById('silent-audio'); isPaused ? audio.pause() : audio.play(); } catch (e) {}
+        }
+
+        function addTenSeconds() {
+            if (plusCount < 2) {
+                timeLeft += 10; plusCount++;
+                document.getElementById('rest-clock').innerText = timeLeft; speak('Ten more seconds', 1.1);
+            } else {
+                document.getElementById('diu-msg').innerText = 'Diu你咩抖咁耐';
+                document.getElementById('rest-clock').style.color = 'rgb(255,68,68)'; speak('Stop resting', 1.0);
+            }
+        }
+
+        function skipRest() { clearInterval(restTimer); currentSet++; isT2 = false; startSet(); }
+    </script>
+</body>
+</html>
