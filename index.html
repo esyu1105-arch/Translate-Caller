@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
     <title>Gym Tempo Pro</title>
-    <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <style>
@@ -19,7 +18,7 @@
         .rest-title{font-size:2rem;color:rgb(255,255,255);margin:0}
         .input-group{display:flex;gap:10px;margin-bottom:10px}
         input{background:rgb(34,34,34);border:2px solid rgb(0,255,136);color:rgb(255,255,255);padding:10px;font-size:1.4rem;border-radius:12px;width:90px;text-align:center}
-        button{padding:18px 30px;font-size:1.3rem;border:none;border-radius:18px;font-weight:700;min-width:105px}
+        button{padding:18px 30px;font-size:1.3rem;border:none;border-radius:18px;font-weight:700;min-width:105px;cursor:pointer}
         .btn-go{background:rgb(0,255,136);color:rgb(0,0,0);min-width:160px}
         .btn-plus{background:rgb(255,193,7);color:rgb(0,0,0);margin-bottom:10px;min-width:160px}
         .btn-stop{background:rgb(255,68,68);color:rgb(255,255,255)}
@@ -34,6 +33,7 @@
         <source src="data:audio/wav;base64,UklGRigAAABXQVZFRm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==" type="audio/wav">
     </audio>
 
+    <!-- Home Screen -->
     <div class="screen" id="h">
         <p class="slogan-text">肥豬王<br>瘦撚梗</p>
         <div class="countdown-text" id="cd-display">🔥 最後衝刺 🔥</div>
@@ -46,6 +46,7 @@
         <button class="btn-go" onclick="triggerStart()">START SESSION</button>
     </div>
 
+    <!-- Training Screen -->
     <div class="screen hidden" id="train-scr">
         <div class="rep-info" id="status-label">Set 1 / 4 | T1</div>
         <div class="main-display" id="count-label">READY</div>
@@ -56,6 +57,7 @@
         </div>
     </div>
 
+    <!-- Rest Screen -->
     <div class="screen hidden" id="rest-scr">
         <h2 class="rest-title">RESTING...</h2>
         <div id="diu-msg"></div>
@@ -64,15 +66,18 @@
         <button class="btn-skip" onclick="skipRest()">SKIP REST</button>
     </div>
 
+    <!-- Congrats Screen -->
     <div class="screen hidden" id="co">
         <div class="main-display" style="font-size:2.2rem;color:rgb(0,255,136);padding:20px;line-height:1.4">Congratulations!<br>Session Complete!</div>
         <button class="btn-go" onclick="resetToHome()">DONE</button>
     </div>
 
+    <!-- 腳本區塊 1: 倒數功能 (獨立運作) -->
     <script>
         function updateCountdown() {
             try {
-                var target = new Date(2026, 4, 24).getTime(); // May is 4
+                // Target date: 2026-05-24. Month is 0-indexed, so May is 4.
+                var target = new Date(2026, 4, 24).getTime(); 
                 var now = new Date().getTime();
                 var diff = target - now;
                 var display = document.getElementById('cd-display');
@@ -81,14 +86,18 @@
                     var weeks = Math.floor(totalDays / 7);
                     var days = totalDays % 7;
                     display.innerHTML = "🔥 最後衝刺 🔥 : " + weeks + " weeks " + days + " days";
+                } else if (display) {
+                    display.innerHTML = "🔥 大日子已到！ 🔥";
                 }
             } catch (e) {
                 console.log("Countdown Fail:", e);
+                // Fail silently, keep the default text
             }
         }
         updateCountdown();
     </script>
 
+    <!-- 腳本區塊 2: 核心功能 -->
     <script>
         var rep = 1, count = 1, currentSet = 1, plusCount = 0, timeLeft = 60, isT2 = false;
         var timer = null, restTimer = null, t2Interval = null, targetReps1 = 10, targetReps2 = 10, targetSets = 4, isPaused = false;
@@ -98,6 +107,7 @@
 
         function speak(txt, rate) {
             try {
+                if(sp.speaking) sp.cancel(); // Prevent queue buildup in preview
                 var u = new SpeechSynthesisUtterance(txt);
                 u.lang = 'en-US'; u.rate = rate || 1.1; sp.speak(u);
             } catch(e){}
@@ -106,6 +116,21 @@
         function clearAllTimeouts() {
             for (var i = 0; i < activeTimeouts.length; i++) { clearTimeout(activeTimeouts[i]); }
             activeTimeouts = [];
+        }
+        
+        // 安全地播放 Audio 並捕捉 Promise 錯誤
+        function playSilentAudio() {
+            try {
+                var audio = document.getElementById('silent-audio');
+                if (audio) {
+                    var playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(function(error) {
+                            // Suppress the unhandled rejection error
+                        });
+                    }
+                }
+            } catch (e) {}
         }
 
         function triggerStart() {
@@ -135,7 +160,9 @@
             for (var i = 0; i < scs.length; i++) { scs[i].classList.add('hidden'); }
             document.getElementById('train-scr').classList.remove('hidden');
             rep = 1; count = 1; isPaused = false;
-            try { document.getElementById('silent-audio').play(); } catch (e) {}
+            
+            playSilentAudio();
+            
             var pBtn = document.getElementById('p'), cLbl = document.getElementById('count-label');
             pBtn.innerText = 'STOP'; pBtn.style.background = 'rgb(255,68,68)'; pBtn.style.color = cWhite;
             cLbl.innerText = 'READY'; cLbl.style.color = cYellow;
@@ -206,20 +233,20 @@
             }, 1000);
         }
 
-        function showFinalCongrats() {
-            speak('Congratulations! Session Complete!', 1.0);
-            var scs = document.querySelectorAll('.screen');
-            for (var i = 0; i < scs.length; i++) { scs[i].classList.add('hidden'); }
-            document.getElementById('co').classList.remove('hidden');
-        }
-
         function triggerPause() {
             isPaused = !isPaused;
             var pBtn = document.getElementById('p');
             pBtn.innerText = isPaused ? 'RESUME' : 'STOP';
             pBtn.style.background = isPaused ? cGreen : 'rgb(255,68,68)';
             pBtn.style.color = isPaused ? 'rgb(0,0,0)' : cWhite;
-            try { var audio = document.getElementById('silent-audio'); isPaused ? audio.pause() : audio.play(); } catch (e) {}
+            try { 
+                var audio = document.getElementById('silent-audio'); 
+                if (isPaused) {
+                    audio.pause();
+                } else {
+                    playSilentAudio();
+                }
+            } catch (e) {}
         }
 
         function addTenSeconds() {
