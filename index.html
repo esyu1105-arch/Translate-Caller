@@ -1,1 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Translator Kiosk (Plan B)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            overscroll-behavior: none;
+        }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="h-screen w-screen bg-black overflow-hidden flex flex-col font-sans">
 
+    <!-- 上半部：老人家 (廣東話) -->
+    <div class="flex-1 bg-[#002B5B] flex flex-col justify-between items-center py-10 px-6 rotate-180">
+        <h1 class="text-white text-3xl font-bold">廣東話</h1>
+        
+        <div id="dialog-elderly" class="opacity-0 transition-opacity duration-300 bg-white text-[#002B5B] w-full min-h-[100px] max-h-[30vh] overflow-y-auto rounded-2xl p-4 shadow-xl flex flex-col justify-center text-3xl font-black text-center leading-tight">
+        </div>
+
+        <button id="btn-elderly" class="bg-[#F9A826] text-[#002B5B] w-40 h-40 md:w-48 md:h-48 rounded-full text-3xl font-black shadow-[0_10px_0_0_#B8720A] active:shadow-[0_0px_0_0_#B8720A] active:translate-y-[10px] transition-all duration-75 flex items-center justify-center shrink-0">
+            撳住講
+        </button>
+        
+        <div id="status-elderly" class="text-white/70 text-xl text-center h-8 font-medium">
+            等待中...
+        </div>
+    </div>
+
+    <!-- 中間分隔線 -->
+    <div class="h-2 w-full bg-black z-10"></div>
+
+    <!-- 下半部：工人姐姐 (Tagalog) -->
+    <div class="flex-1 bg-[#60A5FA] flex flex-col justify-between items-center py-10 px-6">
+        <h1 class="text-[#002B5B] text-3xl font-bold">Tagalog</h1>
+        
+        <div id="dialog-helper" class="opacity-0 transition-opacity duration-300 bg-white text-[#002B5B] w-full min-h-[100px] max-h-[30vh] overflow-y-auto rounded-2xl p-4 shadow-xl flex flex-col justify-center text-2xl font-bold text-center leading-tight">
+        </div>
+
+        <button id="btn-helper" class="bg-[#F9A826] text-[#002B5B] w-40 h-40 md:w-48 md:h-48 rounded-full text-2xl font-black shadow-[0_10px_0_0_#B8720A] active:shadow-[0_0px_0_0_#B8720A] active:translate-y-[10px] transition-all duration-75 flex items-center justify-center text-center leading-tight shrink-0">
+            Pindutin<br>at Hawakan
+        </button>
+        
+        <div id="status-helper" class="text-[#002B5B]/70 text-xl text-center h-8 font-medium">
+            Naghihintay...
+        </div>
+    </div>
+
+    <script>
+        // 檢查瀏覽器支援
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("你嘅瀏覽器唔支援語音辨識，請用 iOS Safari 或 Chrome 開啟。");
+        }
+
+        const btnElderly = document.getElementById('btn-elderly');
+        const statusElderly = document.getElementById('status-elderly');
+        const dialogElderly = document.getElementById('dialog-elderly');
+        
+        const btnHelper = document.getElementById('btn-helper');
+        const statusHelper = document.getElementById('status-helper');
+        const dialogHelper = document.getElementById('dialog-helper');
+
+        let recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        
+        let currentSpeaker = ''; 
+
+        // 破解版 Google Translate API
+        async function translateText(text, sourceLang, targetLang) {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURI(text)}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                return data[0].map(x => x[0]).join('');
+            } catch (err) {
+                console.error("Translation error:", err);
+                return "翻譯失敗 (Translation Failed)";
+            }
+        }
+
+        // 文字轉語音 (TTS)
+        function speakText(text, lang) {
+            window.speechSynthesis.cancel(); // 停晒之前嘅發音
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang; // 'zh-HK' 或 'fil-PH'
+            utterance.rate = 0.9; // 稍微讀慢啲等老人家聽得切
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // STT 結果處理
+        recognition.onresult = async (event) => {
+            const transcript = event.results[0][0].transcript;
+            
+            if (currentSpeaker === 'elderly') {
+                statusElderly.innerText = "翻譯緊...";
+                const translated = await translateText(transcript, 'zh-TW', 'tl');
+                
+                statusElderly.innerText = "翻譯完成";
+                dialogHelper.innerText = translated;
+                dialogHelper.classList.remove("opacity-0");
+                dialogHelper.classList.add("opacity-100");
+                
+                speakText(translated, 'fil-PH');
+                
+                setTimeout(() => { statusElderly.innerText = "等待中..."; }, 2000);
+            } 
+            else if (currentSpeaker === 'helper') {
+                statusHelper.innerText = "Nagsasalin...";
+                const translated = await translateText(transcript, 'tl', 'zh-TW');
+                
+                statusHelper.innerText = "Tapos na";
+                dialogElderly.innerText = translated;
+                dialogElderly.classList.remove("opacity-0");
+                dialogElderly.classList.add("opacity-100");
+                
+                speakText(translated, 'zh-HK');
+                
+                setTimeout(() => { statusHelper.innerText = "Naghihintay..."; }, 2000);
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error:", event.error);
+            if (currentSpeaker === 'elderly') statusElderly.innerText = "收音失敗，請再試";
+            if (currentSpeaker === 'helper') statusHelper.innerText = "Error, subukan muli";
+            setTimeout(() => {
+                statusElderly.innerText = "等待中...";
+                statusHelper.innerText = "Naghihintay...";
+            }, 2000);
+        };
+
+        // 老人家按鈕邏輯 (廣東話)
+        const startElderly = (e) => {
+            e.preventDefault();
+            currentSpeaker = 'elderly';
+            recognition.lang = 'zh-HK';
+            try { recognition.start(); } catch(e) {}
+            
+            statusElderly.innerText = "聽緊你講嘢...";
+            statusElderly.classList.add("text-yellow-400");
+            btnElderly.classList.add("bg-yellow-200");
+            
+            dialogHelper.classList.remove("opacity-100"); 
+            dialogHelper.classList.add("opacity-0");
+        };
+
+        const stopElderly = (e) => {
+            e.preventDefault();
+            recognition.stop();
+            statusElderly.classList.remove("text-yellow-400");
+            btnElderly.classList.remove("bg-yellow-200");
+        };
+
+        // 工人按鈕邏輯 (Tagalog)
+        const startHelper = (e) => {
+            e.preventDefault();
+            currentSpeaker = 'helper';
+            recognition.lang = 'fil-PH';
+            try { recognition.start(); } catch(e) {}
+            
+            statusHelper.innerText = "Nakikinig...";
+            statusHelper.classList.add("text-white");
+            btnHelper.classList.add("bg-yellow-200");
+            
+            dialogElderly.classList.remove("opacity-100"); 
+            dialogElderly.classList.add("opacity-0");
+        };
+
+        const stopHelper = (e) => {
+            e.preventDefault();
+            recognition.stop();
+            statusHelper.classList.remove("text-white");
+            btnHelper.classList.remove("bg-yellow-200");
+        };
+
+        // 綁定事件
+        btnElderly.addEventListener('touchstart', startElderly);
+        btnElderly.addEventListener('touchend', stopElderly);
+        btnElderly.addEventListener('touchcancel', stopElderly);
+
+        btnHelper.addEventListener('touchstart', startHelper);
+        btnHelper.addEventListener('touchend', stopHelper);
+        btnHelper.addEventListener('touchcancel', stopHelper);
+        
+        // Mouse events for desktop testing
+        btnElderly.addEventListener('mousedown', startElderly);
+        btnElderly.addEventListener('mouseup', stopElderly);
+        btnHelper.addEventListener('mousedown', startHelper);
+        btnHelper.addEventListener('mouseup', stopHelper);
+
+    </script>
+</body>
+</html>
