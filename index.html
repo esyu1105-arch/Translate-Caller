@@ -1,317 +1,665 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Translator Kiosk (Plan B)</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="翻譯機">
-    <link rel="apple-touch-icon" href="icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>廣東話 ↔ Filipino 翻譯</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-            overscroll-behavior: none;
-        }
-        ::-webkit-scrollbar { display: none; }
-        
-        @media screen and (orientation: landscape) {
-            #app-container { display: none !important; }
-            #landscape-warning { display: flex !important; }
-        }
-    </style>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="翻譯機">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+HK:wght@700;900&family=Barlow:wght@700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --hk-bg:       #14243D;
+      --hk-surface:  #1C3054;
+      --hk-accent:   #F5A623;
+      --hk-shadow:   #9B6510;
+      --ph-bg:       #0A3323;
+      --ph-surface:  #11452E;
+      --ph-accent:   #F5A623;
+      --ph-shadow:   #9B6510;
+      --white:       #FFFFFF;
+      --muted:       rgba(255,255,255,0.45);
+      --btn-size:    144px;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      background: #000;
+      font-family: 'Barlow', 'Noto Sans HK', sans-serif;
+    }
+
+    ::-webkit-scrollbar { display: none; }
+
+    /* ── Landscape guard ── */
+    #landscape-warning {
+      display: none;
+      position: fixed; inset: 0; z-index: 999;
+      background: #0a0a0a;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      color: #fff;
+    }
+    #landscape-warning svg { width: 72px; height: 72px; color: var(--hk-accent); margin-bottom: 1.5rem; }
+    #landscape-warning h1 { font-size: 2rem; font-weight: 900; margin-bottom: .5rem; }
+    #landscape-warning p  { font-size: 1.2rem; color: var(--muted); }
+
+    @media screen and (orientation: landscape) {
+      #app-container    { display: none !important; }
+      #landscape-warning { display: flex !important; }
+    }
+
+    /* ── App shell ── */
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    /* ── Each half ── */
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2rem 1.5rem 1.75rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel--hk {
+      background: var(--hk-bg);
+      transform: rotate(180deg);
+    }
+
+    .panel--ph {
+      background: var(--ph-bg);
+    }
+
+    /* Subtle noise texture overlay */
+    .panel::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    /* ── Header ── */
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      position: relative;
+      z-index: 1;
+    }
+    .panel-flag { font-size: 2rem; line-height: 1; }
+    .panel-lang {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--white);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    /* ── Dialog card ── */
+    .dialog-wrap {
+      width: 100%;
+      max-height: 30vh;
+      overflow-y: auto;
+      position: relative;
+      z-index: 1;
+      border-radius: 1.25rem;
+      /* transition */
+      opacity: 0;
+      transform: translateY(-8px) scale(.97);
+      transition: opacity .28s ease, transform .28s ease;
+      pointer-events: none;
+    }
+    .dialog-wrap.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .dialog-card {
+      background: rgba(255,255,255,0.96);
+      border-radius: 1.25rem;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,.35);
+    }
+
+    .dialog-label {
+      font-size: .65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: #999;
+      margin-bottom: .4rem;
+    }
+
+    .dialog-text {
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.3;
+      word-break: break-word;
+      font-family: 'Noto Sans HK', 'Barlow', sans-serif;
+    }
+    .panel--hk  .dialog-text { color: var(--hk-bg); font-size: 1.6rem; }
+    .panel--ph  .dialog-text { color: var(--ph-bg); font-size: 1.35rem; }
+
+    /* ── Record button ── */
+    .btn-record {
+      position: relative;
+      z-index: 1;
+      width:  var(--btn-size);
+      height: var(--btn-size);
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      outline: none;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+
+      background: var(--hk-accent);
+      box-shadow: 0 9px 0 0 var(--hk-shadow);
+      color: #1a1a1a;
+
+      font-family: 'Noto Sans HK', 'Barlow', sans-serif;
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.25;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      transition: transform .08s ease, box-shadow .08s ease, background .15s ease;
+    }
+
+    .btn-record--hk  { font-size: 1.4rem; }
+    .btn-record--ph  { font-size: 1.05rem; }
+
+    .btn-record.is-recording {
+      background: #ffd166;
+      transform: translateY(5px);
+      box-shadow: 0 4px 0 0 var(--hk-shadow);
+      animation: pulse-glow 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 4px 0 0 var(--hk-shadow), 0 0 0 0 rgba(245,166,35,.5); }
+      50%       { box-shadow: 0 4px 0 0 var(--hk-shadow), 0 0 0 20px rgba(245,166,35,0); }
+    }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .4rem;
+      min-height: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background .2s;
+    }
+
+    .status-text {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .01em;
+      transition: color .2s;
+    }
+
+    .status-bar.active .status-dot {
+      background: var(--hk-accent);
+      animation: blink .7s ease-in-out infinite;
+    }
+    .status-bar.active .status-text { color: var(--hk-accent); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .2; }
+    }
+
+    /* ── Divider ── */
+    #divider {
+      height: 3px;
+      background: #000;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+  </style>
 </head>
-<body class="h-screen w-screen bg-black overflow-hidden font-sans">
+<body>
 
-    <div id="landscape-warning" class="hidden h-screen w-screen bg-black text-white flex-col items-center justify-center p-8 text-center z-[999]">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mb-6 text-red-500 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-        <h1 class="text-4xl font-bold mb-4">請將手機轉為直直擺放</h1>
-        <p class="text-2xl text-gray-400">Mangyaring hawakan ang telepono nang patayo.</p>
+  <!-- Landscape Warning -->
+  <div id="landscape-warning">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+    </svg>
+    <h1>請將手機轉為直向</h1>
+    <p>Mangyaring hawakan ang telepono nang patayo.</p>
+  </div>
+
+  <div id="app-container">
+
+    <!-- ── TOP: Cantonese / Elderly (rotated for elderly to read) ── -->
+    <div class="panel panel--hk">
+      <div class="panel-header">
+        <span class="panel-flag">🇭🇰</span>
+        <span class="panel-lang">廣東話</span>
+      </div>
+
+      <div id="dialog-elderly" class="dialog-wrap">
+        <div class="dialog-card">
+          <p id="dialog-elderly-label" class="dialog-label"></p>
+          <p id="dialog-elderly-text"  class="dialog-text"></p>
+        </div>
+      </div>
+
+      <button id="btn-elderly" class="btn-record btn-record--hk">撳住講</button>
+
+      <div id="status-elderly" class="status-bar">
+        <span class="status-dot"></span>
+        <span id="status-elderly-text" class="status-text">等待中...</span>
+      </div>
     </div>
 
-    <div id="app-container" class="flex flex-col h-full w-full">
-        
-        <!-- 上半部：老人家 (廣東話) -->
-        <div class="flex-1 bg-[#002B5B] flex flex-col justify-between items-center py-10 px-6 rotate-180">
-            <h1 class="text-white text-3xl font-bold">廣東話</h1>
-            
-            <div id="dialog-elderly" class="opacity-0 transition-opacity duration-300 bg-white text-[#002B5B] w-full min-h-[100px] max-h-[30vh] overflow-y-auto rounded-2xl p-4 shadow-xl flex flex-col justify-center text-3xl font-black text-center leading-tight">
-            </div>
+    <div id="divider"></div>
 
-            <button id="btn-elderly" class="bg-[#F9A826] text-[#002B5B] w-40 h-40 md:w-48 md:h-48 rounded-full text-3xl font-black shadow-[0_10px_0_0_#B8720A] active:shadow-[0_0px_0_0_#B8720A] active:translate-y-[10px] transition-all duration-75 flex items-center justify-center shrink-0 touch-none select-none">
-                撳住講
-            </button>
-            
-            <div id="status-elderly" class="text-white/70 text-xl text-center h-8 font-medium">
-                等待中...
-            </div>
+    <!-- ── BOTTOM: Filipino / Helper ── -->
+    <div class="panel panel--ph">
+      <div class="panel-header">
+        <span class="panel-flag">🇵🇭</span>
+        <span class="panel-lang">Filipino</span>
+      </div>
+
+      <div id="dialog-helper" class="dialog-wrap">
+        <div class="dialog-card">
+          <p id="dialog-helper-label" class="dialog-label"></p>
+          <p id="dialog-helper-text"  class="dialog-text"></p>
         </div>
+      </div>
 
-        <div class="h-2 w-full bg-black z-10 shrink-0"></div>
+      <button id="btn-helper" class="btn-record btn-record--ph">Pindutin<br>at Hawakan</button>
 
-        <!-- 下半部：工人姐姐 (Tagalog) -->
-        <div class="flex-1 bg-[#60A5FA] flex flex-col justify-between items-center py-10 px-6">
-            <h1 class="text-[#002B5B] text-3xl font-bold">Tagalog</h1>
-            
-            <div id="dialog-helper" class="opacity-0 transition-opacity duration-300 bg-white text-[#002B5B] w-full min-h-[100px] max-h-[30vh] overflow-y-auto rounded-2xl p-4 shadow-xl flex flex-col justify-center text-2xl font-bold text-center leading-tight">
-            </div>
-
-            <button id="btn-helper" class="bg-[#F9A826] text-[#002B5B] w-40 h-40 md:w-48 md:h-48 rounded-full text-2xl font-black shadow-[0_10px_0_0_#B8720A] active:shadow-[0_0px_0_0_#B8720A] active:translate-y-[10px] transition-all duration-75 flex items-center justify-center text-center leading-tight shrink-0 touch-none select-none">
-                Pindutin<br>at Hawakan
-            </button>
-            
-            <div id="status-helper" class="text-[#002B5B]/70 text-xl text-center h-8 font-medium">
-                Naghihintay...
-            </div>
-        </div>
-        
+      <div id="status-helper" class="status-bar">
+        <span class="status-dot"></span>
+        <span id="status-helper-text" class="status-text">Naghihintay...</span>
+      </div>
     </div>
 
-    <script>
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            console.warn("瀏覽器唔支援 Web Speech API。");
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /* ─────────────────────────────────────────────────────────────
+       CONSTANTS
+    ───────────────────────────────────────────────────────────── */
+    const LANG_ELDERLY  = 'zh-HK';
+    // iOS is picky about Filipino locale. We try fil-PH first,
+    // then auto-degrade to tl-PH on language-not-supported error.
+    const HELPER_LANGS  = ['fil-PH', 'tl-PH', 'tl'];
+    const STOP_DELAY_MS = 350; // Enough for iOS to catch trailing audio
+
+    /* ─────────────────────────────────────────────────────────────
+       DOM REFS
+    ───────────────────────────────────────────────────────────── */
+    const btnElderly    = document.getElementById('btn-elderly');
+    const statusElBar   = document.getElementById('status-elderly');
+    const statusElText  = document.getElementById('status-elderly-text');
+    const dialogEl      = document.getElementById('dialog-elderly');
+    const dialogElLabel = document.getElementById('dialog-elderly-label');
+    const dialogElText  = document.getElementById('dialog-elderly-text');
+
+    const btnHelper     = document.getElementById('btn-helper');
+    const statusPhBar   = document.getElementById('status-helper');
+    const statusPhText  = document.getElementById('status-helper-text');
+    const dialogPh      = document.getElementById('dialog-helper');
+    const dialogPhLabel = document.getElementById('dialog-helper-label');
+    const dialogPhText  = document.getElementById('dialog-helper-text');
+
+    /* ─────────────────────────────────────────────────────────────
+       STATE
+       idle | recording_elderly | recording_helper
+            | processing_elderly | processing_helper | translating
+    ───────────────────────────────────────────────────────────── */
+    let appState      = 'idle';
+    let gotResult     = false;   // guards onend from double-handling
+    let audioUnlocked = false;
+    let helperLangIdx = 0;       // index into HELPER_LANGS array
+
+    /* ─────────────────────────────────────────────────────────────
+       SPEECH RECOGNITION SETUP
+    ───────────────────────────────────────────────────────────── */
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let rec = null;
+
+    if (SpeechRec) {
+      rec = new SpeechRec();
+      rec.continuous      = false;
+      rec.interimResults  = false;
+      rec.maxAlternatives = 1;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       AUDIO UNLOCK (iOS requires a user-gesture-triggered utterance
+       before any programmatic speech can play)
+    ───────────────────────────────────────────────────────────── */
+    function unlockAudio() {
+      if (audioUnlocked || !window.speechSynthesis) return;
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+      audioUnlocked = true;
+    }
+    // Trigger on very first user interaction — not during recording start
+    document.addEventListener('touchend', unlockAudio, { once: true, passive: true });
+    document.addEventListener('mousedown', unlockAudio, { once: true });
+
+    /* ─────────────────────────────────────────────────────────────
+       TRANSLATION  (Google Translate unofficial endpoint)
+    ───────────────────────────────────────────────────────────── */
+    async function translate(text, from, to) {
+      const url =
+        `https://translate.googleapis.com/translate_a/single` +
+        `?client=gtx&sl=${from}&tl=${to}&dt=t` +
+        `&q=${encodeURIComponent(text)}`;
+      try {
+        const res  = await fetch(url);
+        const data = await res.json();
+        // data[0] is array of [translatedChunk, originalChunk, ...]
+        return data[0].map(chunk => chunk[0]).join('');
+      } catch {
+        return null;
+      }
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       TTS
+    ───────────────────────────────────────────────────────────── */
+    function speak(text, lang) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const u    = new SpeechSynthesisUtterance(text);
+      u.lang     = lang;
+      u.rate     = 0.88;
+      u.volume   = 1;
+      // 180ms gap ensures iOS cancel() settles before new utterance
+      setTimeout(() => window.speechSynthesis.speak(u), 180);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       UI HELPERS
+    ───────────────────────────────────────────────────────────── */
+    function showDialog(side, label, text) {
+      if (side === 'elderly') {
+        dialogElLabel.textContent = label;
+        dialogElText.textContent  = text;
+        dialogEl.classList.add('visible');
+      } else {
+        dialogPhLabel.textContent = label;
+        dialogPhText.textContent  = text;
+        dialogPh.classList.add('visible');
+      }
+    }
+
+    function hideDialog(side) {
+      if (side === 'elderly') dialogEl.classList.remove('visible');
+      else                    dialogPh.classList.remove('visible');
+    }
+
+    function setStatus(side, msg, active = false) {
+      if (side === 'elderly') {
+        statusElText.textContent = msg;
+        statusElBar.classList.toggle('active', active);
+      } else {
+        statusPhText.textContent = msg;
+        statusPhBar.classList.toggle('active', active);
+      }
+    }
+
+    function setBtnRecording(btn, on) {
+      btn.classList.toggle('is-recording', on);
+    }
+
+    function resetUI() {
+      appState  = 'idle';
+      gotResult = false;
+      setStatus('elderly', '等待中...');
+      setStatus('helper',  'Naghihintay...');
+      setBtnRecording(btnElderly, false);
+      setBtnRecording(btnHelper,  false);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       SPEECH RECOGNITION EVENTS
+    ───────────────────────────────────────────────────────────── */
+    if (rec) {
+
+      rec.onresult = async (event) => {
+        gotResult = true;
+        const transcript = event.results[0][0].transcript.trim();
+
+        if (!transcript) {
+          // Got a result but it was empty — treat as no-speech
+          const side = appState.includes('helper') ? 'helper' : 'elderly';
+          showNoSpeechError(side);
+          return;
         }
 
-        const btnElderly = document.getElementById('btn-elderly');
-        const statusElderly = document.getElementById('status-elderly');
-        const dialogElderly = document.getElementById('dialog-elderly');
-        
-        const btnHelper = document.getElementById('btn-helper');
-        const statusHelper = document.getElementById('status-helper');
-        const dialogHelper = document.getElementById('dialog-helper');
+        const isElderly = appState.includes('elderly');
+        appState = 'translating';
 
-        let recognition = null;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
+        if (isElderly) {
+          showDialog('elderly', '你講咗:', transcript);
+          hideDialog('helper');
+          setStatus('elderly', '翻譯緊...');
+
+          const out = await translate(transcript, 'zh-TW', 'tl');
+
+          if (out) {
+            setStatus('elderly', '完成 ✓');
+            showDialog('helper', 'Sinabi niya:', out);
+            speak(out, HELPER_LANGS[helperLangIdx]);
+          } else {
+            setStatus('elderly', '翻譯失敗，請重試');
+          }
+
+        } else {
+          showDialog('helper', 'Sinabi mo:', transcript);
+          hideDialog('elderly');
+          setStatus('helper', 'Nagsasalin...');
+
+          const out = await translate(transcript, 'tl', 'zh-TW');
+
+          if (out) {
+            setStatus('helper', 'Tapos na ✓');
+            showDialog('elderly', '佢講:', out);
+            speak(out, 'zh-HK');
+          } else {
+            setStatus('helper', 'Nabigo, subukan muli');
+          }
         }
-        
-        let appState = 'idle'; 
-        let audioUnlocked = false; 
 
-        // 解鎖機制移至「放手」時執行，避開開咪衝突
-        function unlockAudio() {
-            if (!audioUnlocked && window.speechSynthesis) {
-                const utterance = new SpeechSynthesisUtterance('');
-                window.speechSynthesis.speak(utterance);
-                audioUnlocked = true;
+        setTimeout(resetUI, 3500);
+      };
+
+      /* ── onerror ──
+         KEY FIX: We do NOT call onerror({error:'no-speech'}) manually anymore.
+         onend handles the no-result case cleanly via gotResult flag.       */
+      rec.onerror = (event) => {
+        console.warn('[SpeechRec] error:', event.error);
+        const side = appState.includes('helper') ? 'helper' : 'elderly';
+
+        switch (event.error) {
+          case 'not-allowed':
+          case 'permission-denied':
+            setStatus(side, side === 'elderly' ? '❌ 冇咪高峰權限' : '❌ Walang mic access');
+            break;
+
+          case 'language-not-supported':
+            // Auto-degrade helper language and tell user to retry
+            if (side === 'helper' && helperLangIdx < HELPER_LANGS.length - 1) {
+              helperLangIdx++;
+              setStatus('helper', `Subukan muli (retry)`);
+            } else {
+              setStatus(side, side === 'elderly' ? '❌ 語言不支援' : '❌ Hindi suportado');
             }
+            break;
+
+          case 'network':
+            setStatus(side, side === 'elderly' ? '❌ 網絡問題，請重試' : '❌ Network error');
+            break;
+
+          case 'no-speech':
+          case 'audio-capture':
+            showNoSpeechError(side);
+            break;
+
+          default:
+            setStatus(side, side === 'elderly' ? '錯誤，請再試' : 'Error, ulitin');
         }
 
-        async function translateText(text, sourceLang, targetLang) {
-            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURI(text)}`;
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-                return data[0].map(x => x[0]).join('');
-            } catch (err) {
-                console.error("Translation error:", err);
-                return "翻譯失敗 (Translation Failed)";
-            }
-        }
+        setTimeout(resetUI, 2800);
+      };
 
-        function speakText(text, lang) {
-            if (!window.speechSynthesis) return;
-            window.speechSynthesis.cancel(); 
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang; 
-            utterance.rate = 0.9; 
-            setTimeout(() => { window.speechSynthesis.speak(utterance); }, 100);
-        }
+      /* ── onend ──
+         KEY FIX: This is the ONLY place that handles the "no result" case.
+         - If gotResult is true → onresult already handled everything, do nothing.
+         - If appState is translating/idle → safe to ignore.
+         - Otherwise → recognition ended without a transcript.              */
+      rec.onend = () => {
+        if (gotResult || appState === 'translating' || appState === 'idle') return;
 
-        function resetUI() {
-            appState = 'idle';
-            statusElderly.innerText = "等待中...";
-            statusHelper.innerText = "Naghihintay...";
-            btnElderly.classList.remove("bg-yellow-200");
-            btnHelper.classList.remove("bg-yellow-200");
-        }
+        const side = appState.includes('helper') ? 'helper' : 'elderly';
+        showNoSpeechError(side);
+        setTimeout(resetUI, 2800);
+      };
+    }
 
-        if (recognition) {
-            recognition.onresult = async (event) => {
-                const transcript = event.results[0][0].transcript;
-                
-                if (!transcript || transcript.trim() === "") {
-                    recognition.onerror({error: 'no-speech'});
-                    return;
-                }
-                
-                const currentSpeaker = appState.includes('elderly') ? 'elderly' : 'helper';
-                appState = 'translating'; 
-                
-                if (currentSpeaker === 'elderly') {
-                    dialogElderly.innerHTML = `<span class="text-lg text-gray-500 block mb-1">你講咗:</span>${transcript}`;
-                    dialogElderly.classList.remove("opacity-0");
-                    dialogElderly.classList.add("opacity-100");
-                    
-                    statusElderly.innerText = "翻譯緊...";
-                    const translated = await translateText(transcript, 'zh-TW', 'tl');
-                    
-                    statusElderly.innerText = "翻譯完成";
-                    dialogHelper.innerText = translated;
-                    dialogHelper.classList.remove("opacity-0");
-                    dialogHelper.classList.add("opacity-100");
-                    
-                    speakText(translated, 'fil-PH');
-                    setTimeout(resetUI, 2500);
-                } 
-                else if (currentSpeaker === 'helper') {
-                    dialogHelper.innerHTML = `<span class="text-sm text-gray-500 block mb-1">Sinabi mo:</span>${transcript}`;
-                    dialogHelper.classList.remove("opacity-0");
-                    dialogHelper.classList.add("opacity-100");
+    function showNoSpeechError(side) {
+      if (side === 'elderly') setStatus('elderly', '聽唔清，講大聲啲 🔊');
+      else                    setStatus('helper',  'Hindi marinig, ulitin 🔊');
+    }
 
-                    statusHelper.innerText = "Nagsasalin...";
-                    const translated = await translateText(transcript, 'tl', 'zh-TW');
-                    
-                    statusHelper.innerText = "Tapos na";
-                    dialogElderly.innerText = translated;
-                    dialogElderly.classList.remove("opacity-0");
-                    dialogElderly.classList.add("opacity-100");
-                    
-                    speakText(translated, 'zh-HK');
-                    setTimeout(resetUI, 2500);
-                }
-            };
+    /* ─────────────────────────────────────────────────────────────
+       PUSH-TO-TALK LOGIC
+    ───────────────────────────────────────────────────────────── */
+    function startRec(speaker) {
+      if (appState !== 'idle') return;
+      if (!rec) {
+        alert('請使用 Safari 瀏覽器。\nGamitin ang Safari browser.');
+        return;
+      }
 
-            recognition.onerror = (event) => {
-                console.error("Speech error:", event.error);
-                let errorMsg = "收音失敗 (Error)";
-                let errorHelper = "Error";
-                
-                if (event.error === 'language-not-supported') {
-                    errorMsg = "請先喺設定加菲律賓鍵盤!";
-                    errorHelper = "Idagdag ang Filipino keyboard";
-                } else if (event.error === 'not-allowed') {
-                    errorMsg = "冇咪高峰權限";
-                    errorHelper = "Walang mic access";
-                } else if (event.error === 'no-speech') {
-                    errorMsg = "聽唔清楚，講大聲啲";
-                    errorHelper = "Hindi marinig, ulitin";
-                }
+      gotResult = false;
+      appState  = `recording_${speaker}`;
+      rec.lang  = speaker === 'elderly'
+        ? LANG_ELDERLY
+        : HELPER_LANGS[helperLangIdx];
 
-                if (appState.includes('elderly')) {
-                    statusElderly.innerText = errorMsg;
-                } else if (appState.includes('helper')) {
-                    statusHelper.innerText = errorHelper;
-                }
-                
-                setTimeout(resetUI, 2500);
-            };
+      try {
+        rec.start();
+      } catch (e) {
+        // InvalidStateError = already running (shouldn't happen, but guard it)
+        console.error('[SpeechRec] start() failed:', e);
+        appState = 'idle';
+        return;
+      }
 
-            recognition.onend = () => {
-                if (appState === 'processing_elderly' || appState === 'processing_helper' || appState.includes('recording')) {
-                    console.log("Speech recognition ended without result.");
-                    recognition.onerror({error: 'no-speech'});
-                }
-            };
-        }
+      if (speaker === 'elderly') {
+        hideDialog('helper');
+        setStatus('elderly', '🎙 聽緊你講嘢...', true);
+        setBtnRecording(btnElderly, true);
+      } else {
+        hideDialog('elderly');
+        setStatus('helper', '🎙 Nakikinig...', true);
+        setBtnRecording(btnHelper, true);
+      }
+    }
 
-        // --- Event Handlers ---
+    function stopRec(speaker) {
+      if (appState !== `recording_${speaker}`) return;
 
-        const startElderly = (e) => {
-            if (e) e.preventDefault();
-            if (appState !== 'idle') return; 
-            
-            appState = 'recording_elderly';
-            
-            if (recognition) {
-                recognition.lang = 'zh-HK';
-                try { recognition.start(); } catch(err) { console.error(err); resetUI(); return; }
-            }
-            
-            statusElderly.innerText = "聽緊你講嘢...";
-            statusElderly.classList.add("text-yellow-400");
-            btnElderly.classList.add("bg-yellow-200");
-            dialogHelper.classList.remove("opacity-100"); 
-            dialogHelper.classList.add("opacity-0");
-        };
+      appState = `processing_${speaker}`;
+      setBtnRecording(speaker === 'elderly' ? btnElderly : btnHelper, false);
 
-        const stopElderly = (e) => {
-            if (e) e.preventDefault();
-            if (appState !== 'recording_elderly') return; 
-            
-            unlockAudio(); // 放手先解鎖 Audio，避免撞車
-            appState = 'processing_elderly';
-            
-            btnElderly.classList.remove("bg-yellow-200");
-            statusElderly.classList.remove("text-yellow-400");
-            statusElderly.innerText = "處理中..."; // 提早轉狀態安撫用家
-            
-            if (recognition) {
-                // 核心修復：延遲 800ms 先截斷，等 Apple API 處理埋尾音
-                setTimeout(() => {
-                    if (appState === 'processing_elderly') recognition.stop();
-                }, 800);
-            }
-        };
+      if (speaker === 'elderly') setStatus('elderly', '處理中...');
+      else                        setStatus('helper',  'Pinoproseso...');
 
-        const startHelper = (e) => {
-            if (e) e.preventDefault();
-            if (appState !== 'idle') return; 
-            
-            appState = 'recording_helper';
-            
-            if (recognition) {
-                recognition.lang = 'fil-PH';
-                try { recognition.start(); } catch(err) { console.error(err); resetUI(); return; }
-            }
-            
-            statusHelper.innerText = "Nakikinig...";
-            statusHelper.classList.add("text-white");
-            btnHelper.classList.add("bg-yellow-200");
-            dialogElderly.classList.remove("opacity-100"); 
-            dialogElderly.classList.add("opacity-0");
-        };
+      if (rec) {
+        // KEY FIX: 350ms gives iOS speech API time to process trailing audio
+        // before we cut the session. 800ms was too long and caused state confusion.
+        setTimeout(() => {
+          try { rec.stop(); } catch (_) { /* already stopped */ }
+        }, STOP_DELAY_MS);
+      }
+    }
 
-        const stopHelper = (e) => {
-            if (e) e.preventDefault();
-            if (appState !== 'recording_helper') return; 
-            
-            unlockAudio(); 
-            appState = 'processing_helper';
-            
-            btnHelper.classList.remove("bg-yellow-200");
-            statusHelper.classList.remove("text-white");
-            statusHelper.innerText = "Pinoproseso...";
-            
-            if (recognition) {
-                setTimeout(() => {
-                    if (appState === 'processing_helper') recognition.stop();
-                }, 800);
-            }
-        };
+    /* ─────────────────────────────────────────────────────────────
+       EVENT BINDING
+    ───────────────────────────────────────────────────────────── */
+    // Touch (primary path on iPhone)
+    btnElderly.addEventListener('touchstart',  e => { e.preventDefault(); startRec('elderly'); }, { passive: false });
+    btnElderly.addEventListener('touchend',    e => { e.preventDefault(); stopRec('elderly');  }, { passive: false });
+    btnElderly.addEventListener('touchcancel', ()  => stopRec('elderly'));
 
-        btnElderly.addEventListener('touchstart', startElderly, {passive: false});
-        btnElderly.addEventListener('touchend', stopElderly);
-        btnElderly.addEventListener('touchcancel', stopElderly);
+    btnHelper.addEventListener('touchstart',  e => { e.preventDefault(); startRec('helper'); }, { passive: false });
+    btnHelper.addEventListener('touchend',    e => { e.preventDefault(); stopRec('helper');  }, { passive: false });
+    btnHelper.addEventListener('touchcancel', ()  => stopRec('helper'));
 
-        btnHelper.addEventListener('touchstart', startHelper, {passive: false});
-        btnHelper.addEventListener('touchend', stopHelper);
-        btnHelper.addEventListener('touchcancel', stopHelper);
-        
-        btnElderly.addEventListener('mousedown', startElderly);
-        btnElderly.addEventListener('mouseup', stopElderly);
-        btnElderly.addEventListener('mouseleave', stopElderly); 
+    // Mouse (desktop testing)
+    btnElderly.addEventListener('mousedown',  () => startRec('elderly'));
+    btnElderly.addEventListener('mouseup',    () => stopRec('elderly'));
+    btnElderly.addEventListener('mouseleave', () => { if (appState === 'recording_elderly') stopRec('elderly'); });
 
-        btnHelper.addEventListener('mousedown', startHelper);
-        btnHelper.addEventListener('mouseup', stopHelper);
-        btnHelper.addEventListener('mouseleave', stopHelper);
+    btnHelper.addEventListener('mousedown',  () => startRec('helper'));
+    btnHelper.addEventListener('mouseup',    () => stopRec('helper'));
+    btnHelper.addEventListener('mouseleave', () => { if (appState === 'recording_helper') stopRec('helper'); });
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(()=>{});
-            });
-        }
-    </script>
+    /* ─────────────────────────────────────────────────────────────
+       SERVICE WORKER
+    ───────────────────────────────────────────────────────────── */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+  })();
+  </script>
 </body>
 </html>
