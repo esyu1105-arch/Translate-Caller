@@ -46,7 +46,6 @@
             <div id="dialog-elderly" class="opacity-0 transition-opacity duration-300 bg-white text-[#002B5B] w-full min-h-[100px] max-h-[30vh] overflow-y-auto rounded-2xl p-4 shadow-xl flex flex-col justify-center text-3xl font-black text-center leading-tight">
             </div>
 
-            <!-- 加入 touch-none 徹底防禦 iOS 預設縮放/拖曳干擾 -->
             <button id="btn-elderly" class="bg-[#F9A826] text-[#002B5B] w-40 h-40 md:w-48 md:h-48 rounded-full text-3xl font-black shadow-[0_10px_0_0_#B8720A] active:shadow-[0_0px_0_0_#B8720A] active:translate-y-[10px] transition-all duration-75 flex items-center justify-center shrink-0 touch-none select-none">
                 撳住講
             </button>
@@ -65,7 +64,6 @@
             <div id="dialog-helper" class="opacity-0 transition-opacity duration-300 bg-white text-[#002B5B] w-full min-h-[100px] max-h-[30vh] overflow-y-auto rounded-2xl p-4 shadow-xl flex flex-col justify-center text-2xl font-bold text-center leading-tight">
             </div>
 
-            <!-- 加入 touch-none -->
             <button id="btn-helper" class="bg-[#F9A826] text-[#002B5B] w-40 h-40 md:w-48 md:h-48 rounded-full text-2xl font-black shadow-[0_10px_0_0_#B8720A] active:shadow-[0_0px_0_0_#B8720A] active:translate-y-[10px] transition-all duration-75 flex items-center justify-center text-center leading-tight shrink-0 touch-none select-none">
                 Pindutin<br>at Hawakan
             </button>
@@ -98,10 +96,10 @@
             recognition.interimResults = false;
         }
         
-        // 核心升級：State Machine (狀態機)，防止狂撳掣導致 API 撞車
-        let appState = 'idle'; // 可能的值: 'idle', 'recording_elderly', 'recording_helper', 'translating'
+        let appState = 'idle'; 
         let audioUnlocked = false; 
 
+        // 解鎖機制移至「放手」時執行，避開開咪衝突
         function unlockAudio() {
             if (!audioUnlocked && window.speechSynthesis) {
                 const utterance = new SpeechSynthesisUtterance('');
@@ -148,7 +146,6 @@
                     return;
                 }
                 
-                // 進入翻譯狀態，鎖死按鈕
                 const currentSpeaker = appState.includes('elderly') ? 'elderly' : 'helper';
                 appState = 'translating'; 
                 
@@ -202,20 +199,18 @@
                     errorHelper = "Hindi marinig, ulitin";
                 }
 
-                if (appState === 'recording_elderly') {
+                if (appState.includes('elderly')) {
                     statusElderly.innerText = errorMsg;
-                } else if (appState === 'recording_helper') {
+                } else if (appState.includes('helper')) {
                     statusHelper.innerText = errorHelper;
                 }
                 
                 setTimeout(resetUI, 2500);
             };
 
-            // 終極防線：引擎停止時，如果冇進入翻譯階段，即刻清空狀態，防止卡死
             recognition.onend = () => {
-                if (appState === 'recording_elderly' || appState === 'recording_helper') {
+                if (appState === 'processing_elderly' || appState === 'processing_helper' || appState.includes('recording')) {
                     console.log("Speech recognition ended without result.");
-                    // 當作聽唔清楚處理
                     recognition.onerror({error: 'no-speech'});
                 }
             };
@@ -225,9 +220,8 @@
 
         const startElderly = (e) => {
             if (e) e.preventDefault();
-            if (appState !== 'idle') return; // State Machine 檢查：非 idle 狀態不准錄音
+            if (appState !== 'idle') return; 
             
-            unlockAudio(); 
             appState = 'recording_elderly';
             
             if (recognition) {
@@ -244,28 +238,20 @@
 
         const stopElderly = (e) => {
             if (e) e.preventDefault();
-            if (appState !== 'recording_elderly') return; // 只處理對應嘅 stop
+            if (appState !== 'recording_elderly') return; 
+            
+            unlockAudio(); // 放手先解鎖 Audio，避免撞車
+            appState = 'processing_elderly';
             
             btnElderly.classList.remove("bg-yellow-200");
             statusElderly.classList.remove("text-yellow-400");
+            statusElderly.innerText = "處理中..."; // 提早轉狀態安撫用家
             
             if (recognition) {
-                recognition.stop(); 
-                // 放手後，由 onresult 或 onend 接手狀態轉換
-            } else {
-                // Mock behavior for preview
-                appState = 'translating';
+                // 核心修復：延遲 800ms 先截斷，等 Apple API 處理埋尾音
                 setTimeout(() => {
-                    dialogElderly.innerHTML = `<span class="text-lg text-gray-500 block mb-1">你講咗:</span>食咗飯未啊`;
-                    dialogElderly.classList.add("opacity-100");
-                    statusElderly.innerText = "翻譯緊...";
-                    setTimeout(() => {
-                        dialogHelper.innerText = "Kumain ka na ba?";
-                        dialogHelper.classList.add("opacity-100");
-                        statusElderly.innerText = "翻譯完成";
-                        setTimeout(resetUI, 2500);
-                    }, 1000);
-                }, 500);
+                    if (appState === 'processing_elderly') recognition.stop();
+                }, 800);
             }
         };
 
@@ -273,7 +259,6 @@
             if (e) e.preventDefault();
             if (appState !== 'idle') return; 
             
-            unlockAudio(); 
             appState = 'recording_helper';
             
             if (recognition) {
@@ -292,29 +277,20 @@
             if (e) e.preventDefault();
             if (appState !== 'recording_helper') return; 
             
+            unlockAudio(); 
+            appState = 'processing_helper';
+            
             btnHelper.classList.remove("bg-yellow-200");
             statusHelper.classList.remove("text-white");
+            statusHelper.innerText = "Pinoproseso...";
             
             if (recognition) {
-                recognition.stop();
-            } else {
-                // Mock behavior for preview
-                appState = 'translating';
                 setTimeout(() => {
-                    dialogHelper.innerHTML = `<span class="text-sm text-gray-500 block mb-1">Sinabi mo:</span>Opo, kumain na po ako.`;
-                    dialogHelper.classList.add("opacity-100");
-                    statusHelper.innerText = "Nagsasalin...";
-                    setTimeout(() => {
-                        dialogElderly.innerText = "係，我食咗啦。";
-                        dialogElderly.classList.add("opacity-100");
-                        statusHelper.innerText = "Tapos na";
-                        setTimeout(resetUI, 2500);
-                    }, 1000);
-                }, 500);
+                    if (appState === 'processing_helper') recognition.stop();
+                }, 800);
             }
         };
 
-        // 綁定事件 (加入 touch-none 後，passive: false 先會真正穩定)
         btnElderly.addEventListener('touchstart', startElderly, {passive: false});
         btnElderly.addEventListener('touchend', stopElderly);
         btnElderly.addEventListener('touchcancel', stopElderly);
@@ -325,7 +301,7 @@
         
         btnElderly.addEventListener('mousedown', startElderly);
         btnElderly.addEventListener('mouseup', stopElderly);
-        btnElderly.addEventListener('mouseleave', stopElderly); // 防走位
+        btnElderly.addEventListener('mouseleave', stopElderly); 
 
         btnHelper.addEventListener('mousedown', startHelper);
         btnHelper.addEventListener('mouseup', stopHelper);
