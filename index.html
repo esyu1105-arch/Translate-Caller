@@ -21,29 +21,29 @@
             overscroll-behavior: none;
         }
         ::-webkit-scrollbar { display: none; }
+        
+        /* 新增：橫屏時的霸王硬截擊 */
+        @media screen and (orientation: landscape) {
+            #app-container { display: none !important; }
+            #landscape-warning { display: flex !important; }
+        }
     </style>
 </head>
-<body class="h-screen w-screen bg-black overflow-hidden flex flex-col font-sans">
+<body class="h-screen w-screen bg-black overflow-hidden font-sans">
 
-    <!-- 上半部：老人家 (廣東話) -->
-    <div class="flex-1 bg-[#002B5B] flex flex-col justify-between items-center py-10 px-6 rotate-180">
-        <h1 class="text-white text-3xl font-bold">廣東話</h1>
-        
-        <div id="dialog-elderly" class="opacity-0 transition-opacity duration-300 bg-white text-[#002B5B] w-full min-h-[100px] max-h-[30vh] overflow-y-auto rounded-2xl p-4 shadow-xl flex flex-col justify-center text-3xl font-black text-center leading-tight">
-        </div>
-
-        <button id="btn-elderly" class="bg-[#F9A826] text-[#002B5B] w-40 h-40 md:w-48 md:h-48 rounded-full text-3xl font-black shadow-[0_10px_0_0_#B8720A] active:shadow-[0_0px_0_0_#B8720A] active:translate-y-[10px] transition-all duration-75 flex items-center justify-center shrink-0">
-            撳住講
-        </button>
-        
-        <div id="status-elderly" class="text-white/70 text-xl text-center h-8 font-medium">
-            等待中...
-        </div>
+    <!-- 新增：橫屏警告畫面 -->
+    <div id="landscape-warning" class="hidden h-screen w-screen bg-black text-white flex-col items-center justify-center p-8 text-center z-[999]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mb-6 text-red-500 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+        <h1 class="text-4xl font-bold mb-4">請將手機轉為直直擺放</h1>
+        <p class="text-2xl text-gray-400">Mangyaring hawakan ang telepono nang patayo.</p>
     </div>
 
-    <!-- 中間分隔線 -->
-    <div class="h-2 w-full bg-black z-10"></div>
-
+    <!-- 包起原本嘅 UI 以配合橫屏隱藏 -->
+    <div id="app-container" class="flex flex-col h-full w-full">
+        <!-- 上半部：老人家 (廣東話) -->
+        <div class="flex-1 bg-[#002B5B] flex flex-col justify-between items-center py-10 px-6 rotate-180">
     <!-- 下半部：工人姐姐 (Tagalog) -->
     <div class="flex-1 bg-[#60A5FA] flex flex-col justify-between items-center py-10 px-6">
         <h1 class="text-[#002B5B] text-3xl font-bold">Tagalog</h1>
@@ -58,6 +58,7 @@
         <div id="status-helper" class="text-[#002B5B]/70 text-xl text-center h-8 font-medium">
             Naghihintay...
         </div>
+    </div>
     </div>
 
     <script>
@@ -126,7 +127,18 @@
             recognition.onresult = async (event) => {
                 const transcript = event.results[0][0].transcript;
                 
+                // 新增防呆：如果 Apple API 嘔唔出字，當 Error 處理
+                if (!transcript || transcript.trim() === "") {
+                    recognition.onerror({error: 'no-speech'});
+                    return;
+                }
+                
                 if (currentSpeaker === 'elderly') {
+                    // 同步顯示長者講咗乜，等佢 verify
+                    dialogElderly.innerHTML = `<span class="text-lg text-gray-500 block mb-1">你講咗:</span>${transcript}`;
+                    dialogElderly.classList.remove("opacity-0");
+                    dialogElderly.classList.add("opacity-100");
+                    
                     statusElderly.innerText = "翻譯緊...";
                     const translated = await translateText(transcript, 'zh-TW', 'tl');
                     
@@ -139,6 +151,11 @@
                     setTimeout(() => { statusElderly.innerText = "等待中..."; }, 2000);
                 } 
                 else if (currentSpeaker === 'helper') {
+                    // 同步顯示姐姐講咗乜，等佢 verify
+                    dialogHelper.innerHTML = `<span class="text-sm text-gray-500 block mb-1">Sinabi mo:</span>${transcript}`;
+                    dialogHelper.classList.remove("opacity-0");
+                    dialogHelper.classList.add("opacity-100");
+
                     statusHelper.innerText = "Nagsasalin...";
                     const translated = await translateText(transcript, 'tl', 'zh-TW');
                     
@@ -155,18 +172,31 @@
             recognition.onerror = (event) => {
                 console.error("Speech error:", event.error);
                 let errorMsg = "收音失敗 (Error)";
+                let errorHelper = "Error";
                 
-                // 針對性捕捉 iOS 常見錯誤，顯示畀用家睇
                 if (event.error === 'language-not-supported') {
-                    errorMsg = "請先喺 iPhone 設定加鍵盤!";
+                    errorMsg = "請先喺設定加菲律賓鍵盤!";
+                    errorHelper = "Idagdag ang Filipino keyboard";
                 } else if (event.error === 'not-allowed') {
                     errorMsg = "冇咪高峰權限";
+                    errorHelper = "Walang mic access";
                 } else if (event.error === 'no-speech') {
-                    errorMsg = "聽唔到聲";
+                    errorMsg = "聽唔清楚，講大聲啲";
+                    errorHelper = "Hindi marinig, ulitin";
                 }
 
-                if (currentSpeaker === 'elderly') statusElderly.innerText = errorMsg;
-                if (currentSpeaker === 'helper') statusHelper.innerText = errorMsg;
+                if (currentSpeaker === 'elderly') {
+                    statusElderly.innerText = errorMsg;
+                    dialogElderly.innerText = errorMsg;
+                    dialogElderly.classList.remove("opacity-0");
+                    dialogElderly.classList.add("opacity-100");
+                }
+                if (currentSpeaker === 'helper') {
+                    statusHelper.innerText = errorHelper;
+                    dialogHelper.innerText = errorHelper;
+                    dialogHelper.classList.remove("opacity-0");
+                    dialogHelper.classList.add("opacity-100");
+                }
                 
                 setTimeout(() => {
                     statusElderly.innerText = "等待中...";
@@ -178,27 +208,37 @@
         // 模擬 Fallback (For Preview Environment without Mic access)
         const mockSpeechProcess = async (speaker) => {
             if (speaker === 'elderly') {
+                const mockTranscript = "食咗飯未啊";
+                dialogElderly.innerHTML = `<span class="text-lg text-gray-500 block mb-1">你講咗:</span>${mockTranscript}`;
+                dialogElderly.classList.remove("opacity-0");
+                dialogElderly.classList.add("opacity-100");
+
                 setTimeout(async () => {
                     statusElderly.innerText = "翻譯緊...";
-                    const translated = await translateText("食咗飯未啊", 'zh-TW', 'tl');
+                    const translated = await translateText(mockTranscript, 'zh-TW', 'tl');
                     statusElderly.innerText = "翻譯完成";
                     dialogHelper.innerText = translated;
                     dialogHelper.classList.remove("opacity-0");
                     dialogHelper.classList.add("opacity-100");
                     speakText(translated, 'fil-PH');
                     setTimeout(() => { statusElderly.innerText = "等待中..."; }, 2000);
-                }, 1500);
+                }, 1000);
             } else {
+                const mockTranscript = "Opo, kumain na po ako.";
+                dialogHelper.innerHTML = `<span class="text-sm text-gray-500 block mb-1">Sinabi mo:</span>${mockTranscript}`;
+                dialogHelper.classList.remove("opacity-0");
+                dialogHelper.classList.add("opacity-100");
+
                 setTimeout(async () => {
                     statusHelper.innerText = "Nagsasalin...";
-                    const translated = await translateText("Opo, kumain na po ako.", 'tl', 'zh-TW');
+                    const translated = await translateText(mockTranscript, 'tl', 'zh-TW');
                     statusHelper.innerText = "Tapos na";
                     dialogElderly.innerText = translated;
                     dialogElderly.classList.remove("opacity-0");
                     dialogElderly.classList.add("opacity-100");
                     speakText(translated, 'zh-HK');
                     setTimeout(() => { statusHelper.innerText = "Naghihintay..."; }, 2000);
-                }, 1500);
+                }, 1000);
             }
         };
 
