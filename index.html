@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Translator Kiosk (Plan B)</title>
+    <title>Translator Kiosk</title>
     
-    <!-- PWA & iOS Full Screen Tags -->
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -25,7 +24,6 @@
 </head>
 <body class="h-screen w-screen bg-black overflow-hidden flex flex-col font-sans">
 
-    <!-- 上半部：老人家 (廣東話) -->
     <div class="flex-1 bg-[#002B5B] flex flex-col justify-between items-center py-10 px-6 rotate-180">
         <h1 class="text-white text-3xl font-bold">廣東話</h1>
         
@@ -41,10 +39,8 @@
         </div>
     </div>
 
-    <!-- 中間分隔線 -->
     <div class="h-2 w-full bg-black z-10"></div>
 
-    <!-- 下半部：工人姐姐 (Tagalog) -->
     <div class="flex-1 bg-[#60A5FA] flex flex-col justify-between items-center py-10 px-6">
         <h1 class="text-[#002B5B] text-3xl font-bold">Tagalog</h1>
         
@@ -81,7 +77,7 @@
         
         let currentSpeaker = ''; 
 
-        // 破解版 Google Translate API
+        // Google Translate API Hack
         async function translateText(text, sourceLang, targetLang) {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURI(text)}`;
             try {
@@ -94,16 +90,16 @@
             }
         }
 
-        // 文字轉語音 (TTS)
+        // TTS 發聲
         function speakText(text, lang) {
-            window.speechSynthesis.cancel(); // 停晒之前嘅發音
+            window.speechSynthesis.cancel(); 
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang; // 'zh-HK' 或 'fil-PH'
-            utterance.rate = 0.9; // 稍微讀慢啲等老人家聽得切
+            utterance.lang = lang; 
+            utterance.rate = 0.9; 
             window.speechSynthesis.speak(utterance);
         }
 
-        // STT 結果處理
+        // 處理語音結果
         recognition.onresult = async (event) => {
             const transcript = event.results[0][0].transcript;
             
@@ -117,7 +113,6 @@
                 dialogHelper.classList.add("opacity-100");
                 
                 speakText(translated, 'fil-PH');
-                
                 setTimeout(() => { statusElderly.innerText = "等待中..."; }, 2000);
             } 
             else if (currentSpeaker === 'helper') {
@@ -130,13 +125,12 @@
                 dialogElderly.classList.add("opacity-100");
                 
                 speakText(translated, 'zh-HK');
-                
                 setTimeout(() => { statusHelper.innerText = "Naghihintay..."; }, 2000);
             }
         };
 
         recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error);
+            console.error("Speech error:", event.error);
             if (currentSpeaker === 'elderly') statusElderly.innerText = "收音失敗，請再試";
             if (currentSpeaker === 'helper') statusHelper.innerText = "Error, subukan muli";
             setTimeout(() => {
@@ -145,7 +139,7 @@
             }, 2000);
         };
 
-        // 老人家按鈕邏輯 (廣東話)
+        // 老人家按鈕 (廣東話)
         const startElderly = (e) => {
             e.preventDefault();
             currentSpeaker = 'elderly';
@@ -167,7 +161,7 @@
             btnElderly.classList.remove("bg-yellow-200");
         };
 
-        // 工人按鈕邏輯 (Tagalog)
+        // 工人姐姐按鈕 (Tagalog)
         const startHelper = (e) => {
             e.preventDefault();
             currentSpeaker = 'helper';
@@ -189,7 +183,7 @@
             btnHelper.classList.remove("bg-yellow-200");
         };
 
-        // 綁定事件
+        // 綁定事件 (Mobile 必須加 passive: false 防止 default scroll 行為)
         btnElderly.addEventListener('touchstart', startElderly, {passive: false});
         btnElderly.addEventListener('touchend', stopElderly);
         btnElderly.addEventListener('touchcancel', stopElderly);
@@ -198,7 +192,7 @@
         btnHelper.addEventListener('touchend', stopHelper);
         btnHelper.addEventListener('touchcancel', stopHelper);
         
-        // Mouse events for desktop testing
+        // Desktop Fallback
         btnElderly.addEventListener('mousedown', startElderly);
         btnElderly.addEventListener('mouseup', stopElderly);
         btnHelper.addEventListener('mousedown', startHelper);
