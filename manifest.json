@@ -1,6 +1,6 @@
 {
-  "name": "Translate Caller",
-  "short_name": "TranslateCaller",
+  "name": "Elderly Translator",
+  "short_name": "Translator",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#000000",
