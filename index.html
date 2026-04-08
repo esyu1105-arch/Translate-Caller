@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Translator Kiosk</title>
+    <title>Translator Kiosk (Plan B)</title>
     
+    <!-- PWA & iOS Full Screen Tags -->
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,6 +25,7 @@
 </head>
 <body class="h-screen w-screen bg-black overflow-hidden flex flex-col font-sans">
 
+    <!-- 上半部：老人家 (廣東話) -->
     <div class="flex-1 bg-[#002B5B] flex flex-col justify-between items-center py-10 px-6 rotate-180">
         <h1 class="text-white text-3xl font-bold">廣東話</h1>
         
@@ -39,8 +41,10 @@
         </div>
     </div>
 
+    <!-- 中間分隔線 -->
     <div class="h-2 w-full bg-black z-10"></div>
 
+    <!-- 下半部：工人姐姐 (Tagalog) -->
     <div class="flex-1 bg-[#60A5FA] flex flex-col justify-between items-center py-10 px-6">
         <h1 class="text-[#002B5B] text-3xl font-bold">Tagalog</h1>
         
@@ -60,7 +64,7 @@
         // 檢查瀏覽器支援
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            alert("你嘅瀏覽器唔支援語音辨識，請用 iOS Safari 或 Chrome 開啟。");
+            console.warn("瀏覽器唔支援 Web Speech API。");
         }
 
         const btnElderly = document.getElementById('btn-elderly');
@@ -71,11 +75,24 @@
         const statusHelper = document.getElementById('status-helper');
         const dialogHelper = document.getElementById('dialog-helper');
 
-        let recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        let recognition = null;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+        }
         
         let currentSpeaker = ''; 
+        let audioUnlocked = false; // 新增：用來追蹤 iOS 聲音解鎖狀態
+
+        // 新增：解鎖 iOS Safari 嘅嚴格播聲限制
+        function unlockAudio() {
+            if (!audioUnlocked && window.speechSynthesis) {
+                const utterance = new SpeechSynthesisUtterance('');
+                window.speechSynthesis.speak(utterance);
+                audioUnlocked = true;
+            }
+        }
 
         // Google Translate API Hack
         async function translateText(text, sourceLang, targetLang) {
@@ -92,59 +109,108 @@
 
         // TTS 發聲
         function speakText(text, lang) {
+            if (!window.speechSynthesis) return;
             window.speechSynthesis.cancel(); 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = lang; 
             utterance.rate = 0.9; 
-            window.speechSynthesis.speak(utterance);
+            
+            // 延遲 100ms 播聲，繞過部分 iOS 阻擋非同步語音嘅 Bug
+            setTimeout(() => {
+                window.speechSynthesis.speak(utterance);
+            }, 100);
         }
 
         // 處理語音結果
-        recognition.onresult = async (event) => {
-            const transcript = event.results[0][0].transcript;
-            
-            if (currentSpeaker === 'elderly') {
-                statusElderly.innerText = "翻譯緊...";
-                const translated = await translateText(transcript, 'zh-TW', 'tl');
+        if (recognition) {
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
                 
-                statusElderly.innerText = "翻譯完成";
-                dialogHelper.innerText = translated;
-                dialogHelper.classList.remove("opacity-0");
-                dialogHelper.classList.add("opacity-100");
-                
-                speakText(translated, 'fil-PH');
-                setTimeout(() => { statusElderly.innerText = "等待中..."; }, 2000);
-            } 
-            else if (currentSpeaker === 'helper') {
-                statusHelper.innerText = "Nagsasalin...";
-                const translated = await translateText(transcript, 'tl', 'zh-TW');
-                
-                statusHelper.innerText = "Tapos na";
-                dialogElderly.innerText = translated;
-                dialogElderly.classList.remove("opacity-0");
-                dialogElderly.classList.add("opacity-100");
-                
-                speakText(translated, 'zh-HK');
-                setTimeout(() => { statusHelper.innerText = "Naghihintay..."; }, 2000);
-            }
-        };
+                if (currentSpeaker === 'elderly') {
+                    statusElderly.innerText = "翻譯緊...";
+                    const translated = await translateText(transcript, 'zh-TW', 'tl');
+                    
+                    statusElderly.innerText = "翻譯完成";
+                    dialogHelper.innerText = translated;
+                    dialogHelper.classList.remove("opacity-0");
+                    dialogHelper.classList.add("opacity-100");
+                    
+                    speakText(translated, 'fil-PH');
+                    setTimeout(() => { statusElderly.innerText = "等待中..."; }, 2000);
+                } 
+                else if (currentSpeaker === 'helper') {
+                    statusHelper.innerText = "Nagsasalin...";
+                    const translated = await translateText(transcript, 'tl', 'zh-TW');
+                    
+                    statusHelper.innerText = "Tapos na";
+                    dialogElderly.innerText = translated;
+                    dialogElderly.classList.remove("opacity-0");
+                    dialogElderly.classList.add("opacity-100");
+                    
+                    speakText(translated, 'zh-HK');
+                    setTimeout(() => { statusHelper.innerText = "Naghihintay..."; }, 2000);
+                }
+            };
 
-        recognition.onerror = (event) => {
-            console.error("Speech error:", event.error);
-            if (currentSpeaker === 'elderly') statusElderly.innerText = "收音失敗，請再試";
-            if (currentSpeaker === 'helper') statusHelper.innerText = "Error, subukan muli";
-            setTimeout(() => {
-                statusElderly.innerText = "等待中...";
-                statusHelper.innerText = "Naghihintay...";
-            }, 2000);
+            recognition.onerror = (event) => {
+                console.error("Speech error:", event.error);
+                let errorMsg = "收音失敗 (Error)";
+                
+                // 針對性捕捉 iOS 常見錯誤，顯示畀用家睇
+                if (event.error === 'language-not-supported') {
+                    errorMsg = "請先喺 iPhone 設定加鍵盤!";
+                } else if (event.error === 'not-allowed') {
+                    errorMsg = "冇咪高峰權限";
+                } else if (event.error === 'no-speech') {
+                    errorMsg = "聽唔到聲";
+                }
+
+                if (currentSpeaker === 'elderly') statusElderly.innerText = errorMsg;
+                if (currentSpeaker === 'helper') statusHelper.innerText = errorMsg;
+                
+                setTimeout(() => {
+                    statusElderly.innerText = "等待中...";
+                    statusHelper.innerText = "Naghihintay...";
+                }, 3000);
+            };
+        }
+
+        // 模擬 Fallback (For Preview Environment without Mic access)
+        const mockSpeechProcess = async (speaker) => {
+            if (speaker === 'elderly') {
+                setTimeout(async () => {
+                    statusElderly.innerText = "翻譯緊...";
+                    const translated = await translateText("食咗飯未啊", 'zh-TW', 'tl');
+                    statusElderly.innerText = "翻譯完成";
+                    dialogHelper.innerText = translated;
+                    dialogHelper.classList.remove("opacity-0");
+                    dialogHelper.classList.add("opacity-100");
+                    speakText(translated, 'fil-PH');
+                    setTimeout(() => { statusElderly.innerText = "等待中..."; }, 2000);
+                }, 1500);
+            } else {
+                setTimeout(async () => {
+                    statusHelper.innerText = "Nagsasalin...";
+                    const translated = await translateText("Opo, kumain na po ako.", 'tl', 'zh-TW');
+                    statusHelper.innerText = "Tapos na";
+                    dialogElderly.innerText = translated;
+                    dialogElderly.classList.remove("opacity-0");
+                    dialogElderly.classList.add("opacity-100");
+                    speakText(translated, 'zh-HK');
+                    setTimeout(() => { statusHelper.innerText = "Naghihintay..."; }, 2000);
+                }, 1500);
+            }
         };
 
         // 老人家按鈕 (廣東話)
         const startElderly = (e) => {
             e.preventDefault();
+            unlockAudio(); // 每次撳掣都行一次解鎖機制
             currentSpeaker = 'elderly';
-            recognition.lang = 'zh-HK';
-            try { recognition.start(); } catch(e) {}
+            if (recognition) {
+                recognition.lang = 'zh-HK';
+                try { recognition.start(); } catch(e) {}
+            }
             
             statusElderly.innerText = "聽緊你講嘢...";
             statusElderly.classList.add("text-yellow-400");
@@ -156,17 +222,23 @@
 
         const stopElderly = (e) => {
             e.preventDefault();
-            recognition.stop();
+            if (recognition) recognition.stop();
             statusElderly.classList.remove("text-yellow-400");
             btnElderly.classList.remove("bg-yellow-200");
+            
+            // 如果無 recognition (例如 iframe 預覽)，行 Mock Data 畀你睇效果
+            if (!recognition) mockSpeechProcess('elderly');
         };
 
         // 工人姐姐按鈕 (Tagalog)
         const startHelper = (e) => {
             e.preventDefault();
+            unlockAudio(); // 每次撳掣都行一次解鎖機制
             currentSpeaker = 'helper';
-            recognition.lang = 'fil-PH';
-            try { recognition.start(); } catch(e) {}
+            if (recognition) {
+                recognition.lang = 'fil-PH';
+                try { recognition.start(); } catch(e) {}
+            }
             
             statusHelper.innerText = "Nakikinig...";
             statusHelper.classList.add("text-white");
@@ -178,9 +250,12 @@
 
         const stopHelper = (e) => {
             e.preventDefault();
-            recognition.stop();
+            if (recognition) recognition.stop();
             statusHelper.classList.remove("text-white");
             btnHelper.classList.remove("bg-yellow-200");
+
+            // 如果無 recognition (例如 iframe 預覽)，行 Mock Data 畀你睇效果
+            if (!recognition) mockSpeechProcess('helper');
         };
 
         // 綁定事件 (Mobile 必須加 passive: false 防止 default scroll 行為)
